@@ -59,12 +59,14 @@ void loop()
       motorY.moveTo(yPos);
       
       // Move motors while detecting holes and cleaning
-      while (motorX.distanceToGo() != 0 || motorY.distanceToGo() != 0) {
+      while (motorX.distanceToGo() != 0 || motorY.distanceToGo() != 0) 
+      {
         motorX.run();
         motorY.run();
         
         // If a hole is detected, initiate cleaning
-        if (detectHole()) {
+        if (detectHole()) 
+        {
           int tubeSize = detectTubeSize(); // Measure tube size dynamically
           Serial.print("Detected tube size: ");
           Serial.println(tubeSize);
