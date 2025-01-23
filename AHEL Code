@@ -1,0 +1,163 @@
+#include <Keypad.h>
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+
+// keypad variables
+const int ROW_NUM = 4; //four rows
+const int COLUMN_NUM = 3; //three columns
+
+char keys[ROW_NUM][COLUMN_NUM] = {
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+  {'7', '8', '9'},
+  {'*', '0', '#'}
+};
+
+byte pin_rows[ROW_NUM] = {9, 8, 7, 6};   //connect to the row pinouts of the keypad
+byte pin_column[COLUMN_NUM] = {5, 4, 3}; //connect to the column pinouts of the keypad
+
+Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, ROW_NUM, COLUMN_NUM );
+
+// led screen variables
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// infared sensor variables
+int infaredPin = 10;
+
+// own variables
+String inputString;
+long inputInt;
+int stage = 1; // starting stage of the arduino
+int numHoleArray[100];
+
+void setup() {
+  Serial.begin(9600); // // Serial Communication is starting with 9600 of baudrate speed
+  // set mode of infared pin
+  pinMode(infaredPin, INPUT);
+  // init lcd
+  lcd.begin();
+  lcd.backlight();
+  DisplayLCD("starting...", 0);
+  delay(3000);
+}
+
+void loop() {
+  // Get row
+  int numRows = RowToMove();
+  // GEt number of holes
+  for (int i = 0; i < numRows; i ++) {
+    int numberOfHoles = GetNumHoles(i);
+    numHoleArray[i] = numberOfHoles;
+  }
+  // move motor
+  ClearLCD();
+  DisplayLCD("Moving...", 0);
+  for (int i = 0; i < numRows; i ++) {
+    Move(numHoleArray[i]);
+    ClearLCD();
+    DisplayLCD("Moving to start...", 0);
+    delay(5000);
+    ClearLCD();
+    DisplayLCD("Moving next...", 0);
+  }
+  ClearLCD();
+  DisplayLCD("Operation", 0);
+  DisplayLCD("completed! :)", 0);
+  delay(5000);
+}
+
+void Move(int numHoles) {
+  MoveToRow();
+  MoveAcrossRow(numHoles);
+}
+
+void MoveToRow() {
+  ClearLCD();
+  DisplayLCD("Moving to row...", 0);
+  delay(5000);
+}
+
+void MoveAcrossRow(int numHoles) {
+  ClearLCD();
+  DisplayLCD("Moving to holes...", 0);
+  int remainingHoles = numHoles;
+  bool doLance = true;
+  while (remainingHoles > 0 ) {
+    if (digitalRead(infaredPin) == 1 && doLance) {
+      // if it is a hole
+      // move motor in
+      ClearLCD();
+      DisplayLCD("Hole Detected...", 0);
+      delay(1000);
+      Lance();
+      doLance = false;
+      remainingHoles--;
+      ClearLCD();
+      DisplayLCD("Moving to next...", 0);
+    }
+    if (digitalRead(infaredPin) == 0) {
+      doLance = true;
+    }
+  }
+}
+
+void Lance() {
+  ClearLCD();
+  DisplayLCD("Lancing...", 0);
+  delay(3000);
+}
+
+// Select Row function
+int RowToMove() {
+  // Enter display to show selecting of row
+  // todo : display query
+  ClearLCD();
+  DisplayLCD("Enter num row:", 0);
+  return ReadKeypad().toInt();
+}
+
+// Get Num Holes
+int GetNumHoles(int rowId) {
+  // todo : display query
+   Serial.println(rowId);
+  ClearLCD();
+  String msgconst = " num holes";
+  int rowNum = rowId + 1;
+  String msg = rowNum + msgconst;
+  DisplayLCD(msg, 0);
+  return ReadKeypad().toInt();
+}
+
+// helper function
+String ReadKeypad() {
+  String inputString;
+  while (true) {
+    char key = keypad.getKey();
+    DisplayLCD(inputString, 1);
+    if (key) {
+      if (key >= '0' && key <= '9') {     // only act on numeric keys
+        inputString += key;               // append new character to input string
+      } else if (key == '#') {
+        // reset
+        inputString = "";
+        ClearRowLCD(1);
+      } else if (key == '*') {
+        break;                 // clear input
+      }
+    }
+  }
+  return inputString;
+}
+
+void DisplayLCD(String msg, int row) {
+  lcd.setCursor(0, row);
+  lcd.print(msg);
+}
+
+void ClearLCD() {
+  lcd.clear();
+}
+
+void ClearRowLCD(int row) {
+  DisplayLCD("                ", row);
+}
